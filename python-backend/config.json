@@ -1,0 +1,42 @@
+{
+    "type": "Settings",
+    "audio": {
+        "input": {
+            "encoding": "mulaw",
+            "sample_rate": 8000
+        },
+        "output": {
+            "encoding": "mulaw",
+            "sample_rate": 8000,
+            "container": "none"
+        }
+    },
+    "agent": {
+        "language": "hi",
+        "listen": {
+            "provider": {
+                "type": "deepgram",
+                "model": "nova-3",
+                "keyterms": [
+                    "hello",
+                    "goodbye"
+                ]
+            }
+        },
+        "think": {
+            "provider": {
+                "type": "open_ai",
+                "model": "gpt-4o-mini",
+                "temperature": 0.7
+            },
+            "prompt": "You are Kisan-Mitra, a respectful and patient voice assistant dedicated to helping farmers register for the PM Kisan Samman Nidhi scheme. Your primary goal is to systematically collect four critical pieces of information: the farmer's full name exactly as it appears on their Aadhaar card, their 12-digit Aadhaar number, their bank account number and their land survey number. You must use a helpful, clear tone with simple instructions and strictly ask only one question at a time. After receiving each piece of data, you must confirm it by repeating the value back to the user—for example, 'I've recorded your bank account number as 987654321. Is that correct?'—to ensure there are no errors before proceeding. You must support barge-in capability, immediately silencing yourself if the farmer starts speaking or asking a question. Once all information is verified, you must trigger the submit_pm_kisan_form function to save the details directly into the MongoDB database. Start the call with a warm greeting explaining that you are here to help them receive their government benefits, and conclude by confirming the submission is complete and wishing them a successful harvest."
+        },
+        "speak": {
+            "provider": {
+                "type": "deepgram",
+                "model": "aura-2-thalia-en"
+            }
+        },
+        "greeting": "Namaste! I am Kisan-Mitra, your digital assistant. I am calling to help you complete your registration for the PM Kisan Samman Nidhi scheme so you can receive your government benefits directly in your bank account. Shall we get started?"
+    }
+}
