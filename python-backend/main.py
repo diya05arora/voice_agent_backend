@@ -207,5 +207,5 @@ async def handle_media_stream(websocket: WebSocket, agent_id: str):
         logger.info(f"Media stream closed for agent {agent_id}")
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT"))
+    port = int(os.environ.get("PORT", 5000))
     uvicorn.run(app, host="0.0.0.0", port=port)
