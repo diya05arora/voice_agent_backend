@@ -4,7 +4,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function createAgent(req, res) {
     try {
-        const { agentName, knowledgeBase, language } = req.body;
+        const { agentName, agentType, knowledgeBase, language } = req.body;
         
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         // 1. Configure Gemini for Structured JSON Output
@@ -38,6 +38,7 @@ export async function createAgent(req, res) {
         const newAgent = new Agent({
             adminId: req.user.id,
             agentName,
+            agentType,
             language,
             knowledgeBase,
             systemPrompt: aiData.systemPrompt,

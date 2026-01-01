@@ -10,6 +10,12 @@ const AgentSchema = new Schema({
         type: String,
         required: true
     },
+    agentType: {
+        type: String,
+        enum: ['query', 'survey', 'form'],
+        default: 'query', // Sets a default so existing agents don't break
+        required: true
+    },
     language: {
         type: String,
         default: 'hi' // Default to Hindi
