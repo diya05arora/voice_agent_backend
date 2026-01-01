@@ -56,9 +56,7 @@ export async function createAgent(req, res) {
 // Standard CRUD operations remain the same
 export async function getAgents(req, res) {
     try {
-        console.log(req.user.id);
         const agents = await Agent.find({ adminId: req.user.id });
-        console.log(agents);
         res.json(agents);
     } catch (error) {
         res.status(500).json({ message: "Server Error" });

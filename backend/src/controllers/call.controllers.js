@@ -13,7 +13,6 @@ export async function triggerCall(req, res) {
       url: `${process.env.NGROK_URL}/incoming-call?agent_id=${agentId}`,
       method: 'POST'
     });
-    console.log("Agent id", agentId)
     res.json({ success: true, callSid: call.sid });
   } catch (error) {
     res.status(500).json({ error: error.message });

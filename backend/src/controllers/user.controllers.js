@@ -38,8 +38,6 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required.")
     }
 
-    console.log(fullName, email, password);
-
     const existedUser = await User.findOne({
         $or: [{ email }]
     })
@@ -341,11 +339,7 @@ const getUserChannelProfile = asyncHandler( async (req, res) => {
     if(!existedUser){
         throw new ApiError(404, "user not found");
     }
-
-    console.log(existedUser);
-
-    console.log(username);
-
+    
     const channel = await User.aggregate(
         [
             {

@@ -34,10 +34,7 @@ def get_dynamic_config(agent_id):
     client = MongoClient(os.getenv("MONGODB_URI"))
     DB_NAME = "voice-agent"
     db = client[DB_NAME]
-    print(f"Available Databases: {client.list_database_names()}")
-    print(f"Available Collections in {DB_NAME}: {db.list_collection_names()}")
     agents_collection = db.agents
-    print("Agents collection accessed", agents_collection)
 
     clean_id = str(agent_id).strip()
     """Fetches agent details from MongoDB and builds the Deepgram config."""
@@ -48,7 +45,6 @@ def get_dynamic_config(agent_id):
             {"_id" : clean_id}  # In case IDs are stored as strings
         ]
     })
-    print(f"DEBUG: Retrieved agent data: {agent_data}")
     
     if not agent_data:
         raise Exception("Agent not found.")
@@ -61,7 +57,6 @@ def get_dynamic_config(agent_id):
     }
     voice_model = voice_model_map.get(language, "aura-2-thalia-en")
     
-    print(f"DEBUG: Using language '{language}' with voice model '{voice_model}'")
 
     # This structure matches the config.json you shared earlier
     return {
@@ -143,7 +138,6 @@ async def incoming_call(request: Request):
     agent_id = request.query_params.get("agent_id")
     host = request.url.hostname
     
-    print(f"DEBUG: incoming_call received agent_id: {agent_id}")
     
     if not agent_id:
         print("ERROR: agent_id is missing from the request!")
@@ -176,13 +170,6 @@ async def handle_media_stream(websocket: WebSocket, agent_id: str):
         # 4. Fetch dynamic config from MongoDB and send to Deepgram
         config = get_dynamic_config(agent_id)
         await sts_ws.send(json.dumps(config))
-
-        try:
-        # Wait for a response from Deepgram about the config
-            first_resp = await asyncio.wait_for(sts_ws.recv(), timeout=5.0)
-            print(f"DEBUG: Deepgram Initial Response: {first_resp}")
-        except Exception as e:
-            print(f"❌ Deepgram rejected the config immediately: {e}")
 
         await asyncio.gather(
             sts_sender(sts_ws, audio_queue),
