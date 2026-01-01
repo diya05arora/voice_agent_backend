@@ -1,14 +1,20 @@
 import asyncio
 import base64
 import json
+import logging
 import os
 import websockets
 from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import HTMLResponse
+from starlette.websockets import WebSocketDisconnect
 import uvicorn
 from dotenv import load_dotenv
 from pymongo import MongoClient
 from bson import ObjectId
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -98,17 +104,24 @@ async def sts_sender(sts_ws, audio_queue):
 
 async def sts_receiver(sts_ws, websocket, streamsid_queue):
     streamsid = await streamsid_queue.get()
-    async for message in sts_ws:
-        if isinstance(message, str):
-            decoded = json.loads(message)
-            await handle_barge_in(decoded, websocket, streamsid)
-        else:
-            media_message = {
-                "event": "media",
-                "streamSid": streamsid,
-                "media": {"payload": base64.b64encode(message).decode("ascii")}
-            }
-            await websocket.send_text(json.dumps(media_message))
+    try:
+        async for message in sts_ws:
+            if isinstance(message, str):
+                decoded = json.loads(message)
+                await handle_barge_in(decoded, websocket, streamsid)
+            else:
+                media_message = {
+                    "event": "media",
+                    "streamSid": streamsid,
+                    "media": {"payload": base64.b64encode(message).decode("ascii")}
+                }
+                try:
+                    await websocket.send_text(json.dumps(media_message))
+                except WebSocketDisconnect:
+                    logger.info("Client disconnected while sending media")
+                    break
+    except Exception as e:
+        logger.error(f"Error in sts_receiver: {e}")
 
 async def twilio_receiver(websocket, audio_queue, streamsid_queue):
     BUFFER_SIZE = 20 * 160
@@ -126,9 +139,12 @@ async def twilio_receiver(websocket, audio_queue, streamsid_queue):
                     audio_queue.put_nowait(inbuffer[:BUFFER_SIZE])
                     inbuffer = inbuffer[BUFFER_SIZE:]
             elif data["event"] == "stop":
+                logger.info("Twilio stop event received")
                 break
-    except Exception:
-        pass
+    except WebSocketDisconnect:
+        logger.info("Twilio WebSocket disconnected")
+    except Exception as e:
+        logger.error(f"Error in twilio_receiver: {e}")
 
 # --- Updated FastAPI Routes ---
 
@@ -159,23 +175,36 @@ async def handle_media_stream(websocket: WebSocket, agent_id: str):
     await websocket.accept()
 
     if not agent_id:
-        print("CRITICAL: No agent_id found in WebSocket connection!")
+        logger.error("CRITICAL: No agent_id found in WebSocket connection!")
         await websocket.close()
         return
     
     audio_queue = asyncio.Queue()
     streamsid_queue = asyncio.Queue()
 
-    async with sts_connect() as sts_ws:
-        # 4. Fetch dynamic config from MongoDB and send to Deepgram
-        config = get_dynamic_config(agent_id)
-        await sts_ws.send(json.dumps(config))
+    try:
+        async with sts_connect() as sts_ws:
+            # 4. Fetch dynamic config from MongoDB and send to Deepgram
+            config = get_dynamic_config(agent_id)
+            await sts_ws.send(json.dumps(config))
+            logger.info(f"Connected to Deepgram for agent {agent_id}")
 
-        await asyncio.gather(
-            sts_sender(sts_ws, audio_queue),
-            sts_receiver(sts_ws, websocket, streamsid_queue),
-            twilio_receiver(websocket, audio_queue, streamsid_queue)
-        )
+            await asyncio.gather(
+                sts_sender(sts_ws, audio_queue),
+                sts_receiver(sts_ws, websocket, streamsid_queue),
+                twilio_receiver(websocket, audio_queue, streamsid_queue),
+                return_exceptions=True
+            )
+    except WebSocketDisconnect:
+        logger.info(f"WebSocket disconnected for agent {agent_id}")
+    except Exception as e:
+        logger.error(f"Error in handle_media_stream: {e}")
+    finally:
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+        logger.info(f"Media stream closed for agent {agent_id}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5000)
