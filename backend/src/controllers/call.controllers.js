@@ -10,7 +10,7 @@ export async function triggerCall(req, res) {
       from: process.env.TWILIO_NUMBER,
       to: phoneNumber,
       // Pass the agentId to Python via the URL query string
-      url: `${process.env.NGROK_URL}/incoming-call?agent_id=${agentId}`,
+      url: `${process.env.PYTHON_BACKEND_URL}/incoming-call?agent_id=${agentId}`,
       method: 'POST'
     });
     res.json({ success: true, callSid: call.sid });
