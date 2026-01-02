@@ -21,7 +21,7 @@ if sys.platform == "win32":
 # ================== SETUP ==================
 load_dotenv()
 assert os.getenv("DEEPGRAM_API_KEY")
-assert os.getenv("MONGODB_URI")
+assert os.getenv("MONGO_URI")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ app = FastAPI()
 
 # ================== DB ==================
 def get_db():
-    return MongoClient(os.getenv("MONGODB_URI"))["test"]
+    return MongoClient(os.getenv("MONGO_URI"))["test"]
 
 # ================== DEEPGRAM ==================
 def sts_connect():

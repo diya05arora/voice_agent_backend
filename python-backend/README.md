@@ -7,7 +7,7 @@
 NODE_ENV=node_environment
 PORT=port_number_for_backend
 CORS_ORIGIN=*
-MONGODB_URI=your_mongodb_connection_string
+MONGO_URI=your_mongodb_connection_string
 REFRESH_TOKEN_SECRET=your_refresh_token_secret
 REFRESH_TOKEN_EXPIRY=days
 ACCESS_TOKEN_SECRET=your_access_token_secret
@@ -30,7 +30,7 @@ DEEPGRAM_API_KEY=your_deepgram_api_key
 TWILIO_ACCOUNT_SID=ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 TWILIO_AUTH_TOKEN=your_twilio_auth_token
 TWILIO_NUMBER=your_twilio_phone_number
-MONGODB_URI=your_mongodb_connection_string
+MONGO_URI=your_mongodb_connection_string
 PORT=port_number_for_python_backend
 ```
 
