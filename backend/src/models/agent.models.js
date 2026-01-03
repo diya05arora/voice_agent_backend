@@ -2,12 +2,18 @@ import { Schema, model } from 'mongoose';
 
 const FormFieldSchema = new Schema({
   key: { type: String, required: true },       // internal key
-  label: { type: String, required: true },     // question shown to user
+  label: { type: String, required: true },     // question asked to user
+
   type: {
     type: String,
-    enum: ['string', 'number', 'phone', 'date'],
+    enum: ['string', 'number', 'date'],
     default: 'string'
   },
+
+  // optional constraints for number fields
+  minLength: Number,
+  maxLength: Number,
+
   required: { type: Boolean, default: true }
 });
 
@@ -33,7 +39,6 @@ const AgentSchema = new Schema({
     },
     knowledgeBase: {
         type: String, // cloudinary url
-        required: true
     },
     knowledgeBasePublicId: {
         type: String, // cloudinary public id
