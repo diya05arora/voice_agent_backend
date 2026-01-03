@@ -21,7 +21,7 @@ if sys.platform == "win32":
 # ================== SETUP ==================
 load_dotenv()
 assert os.getenv("DEEPGRAM_API_KEY")
-assert os.getenv("MONGO_URI")
+assert os.getenv("MONGODB_URI")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ app = FastAPI()
 
 # ================== DB ==================
 def get_db():
-    return MongoClient(os.getenv("MONGO_URI"))["test"]
+    return MongoClient(os.getenv("MONGODB_URI"))["test"]
 
 # ================== DEEPGRAM ==================
 def sts_connect():
@@ -59,15 +59,23 @@ def is_yes(text: str):
     clean = re.sub(r"[^\w]", "", text.lower())
     return clean in {"yes", "yeah", "yep", "correct", "right", "haan"}
 
-# ================== SAVE ==================
-def save_form_submission(agent_id, answers):
+# ================== SAVE (GENERIC & SCHEMA-DRIVEN) ==================
+def save_form_submission(agent_id, answers, fields):
     safe_answers = {}
 
+    field_type_map = {
+        f["key"]: f.get("type", "text") for f in fields
+    }
+
     for key, value in answers.items():
-        if key == "phone":
+        field_type = field_type_map.get(key, "text")
+
+        # 🔢 ANY numeric field (phone, aadhar, income, account, etc.)
+        if field_type == "number":
             digits = extract_digits(value)
-            if len(digits) >= 10:
-                safe_answers[key] = digits[:10]
+            safe_answers[key] = digits if digits else None
+
+        # 📝 text fields
         else:
             safe_answers[key] = value.strip()
 
@@ -126,8 +134,7 @@ async def sts_receiver(sts_ws, websocket, streamsid_queue, agent_id):
     fields = agent["formFields"]
 
     index = 0
-    pending_name = None
-    pending_phone_digits = ""
+    pending_value = ""
     collected = {}
 
     async for msg in sts_ws:
@@ -138,14 +145,10 @@ async def sts_receiver(sts_ws, websocket, streamsid_queue, agent_id):
             if data.get("type") == "FunctionCallRequest":
                 final_answers = dict(collected)
 
-                if index < len(fields):
-                    field = fields[index]
-                    if field["type"] == "phone" and len(pending_phone_digits) >= 10:
-                        final_answers[field["key"]] = pending_phone_digits[:10]
-                    elif field["type"] != "phone" and pending_name:
-                        final_answers[field["key"]] = pending_name
+                if index < len(fields) and pending_value:
+                    final_answers[fields[index]["key"]] = pending_value
 
-                save_form_submission(agent_id, final_answers)
+                save_form_submission(agent_id, final_answers, fields)
 
                 await sts_ws.send(json.dumps({
                     "type": "FunctionCallResponse",
@@ -158,40 +161,35 @@ async def sts_receiver(sts_ws, websocket, streamsid_queue, agent_id):
             if data.get("type") == "ConversationText" and data.get("role") == "user":
                 text = data["content"]
 
-                # ✅ ALL FIELDS DONE → IGNORE EVERYTHING
                 if index >= len(fields):
                     continue
 
                 # ===== CONFIRMATION =====
                 if is_yes(text):
-                    field = fields[index]
+                    # ❌ Do NOT confirm if no value captured
+                    if not pending_value:
+                        logger.info("⚠️ Confirmation received but no value captured, asking again")
+                        continue
 
-                    if field["type"] == "phone" and len(pending_phone_digits) >= 10:
-                        collected[field["key"]] = pending_phone_digits[:10]
-                        pending_phone_digits = ""
-                        index += 1
-
-                    elif field["type"] != "phone" and pending_name:
-                        collected[field["key"]] = pending_name
-                        pending_name = None
-                        index += 1
-
+                    collected[fields[index]["key"]] = pending_value
+                    pending_value = ""
+                    index += 1
                     continue
+
 
                 # ===== FIELD VALUE =====
                 field = fields[index]
 
-                if field["type"] == "phone":
+                if field["type"] == "number":
                     digits = extract_digits(text)
                     if digits:
-                        pending_phone_digits += digits
-                    continue
-
-                cleaned = text.strip(" .,!?")
-                pending_name = (
-                    cleaned if pending_name is None
-                    else f"{pending_name} {cleaned}"
-                )
+                        pending_value += digits
+                else:
+                    cleaned = text.strip(" .,!?")
+                    pending_value = (
+                        cleaned if not pending_value
+                        else f"{pending_value} {cleaned}"
+                    )
 
         else:
             await websocket.send_text(json.dumps({
