@@ -19,13 +19,13 @@ export async function createAgent(req, res) {
     const { agentName, agentType, language, formFields = [] } = req.body;
     const knowledgeBaseFilePath = req.file?.path;
 
-    // ✅ Parse formFields (form-data sends string)
+    // Parse formFields (form-data sends string)
     const parsedFormFields =
       typeof formFields === "string"
         ? JSON.parse(formFields)
         : formFields;
 
-    // ✅ Basic validation (KB is optional)
+    // Basic validation (KB is optional)
     if (
       [agentName, agentType, language].some(
         (field) => field?.trim() === "" || field === undefined
