@@ -173,8 +173,20 @@ Return ONLY valid JSON:
     res.status(201).json(agent);
 
   } catch (err) {
-    console.error("❌ Agent creation failed:", err);
-    res.status(500).json({ message: "Agent creation failed" });
+    console.error("Agent creation failed:", err?.stack || err);
+
+    const statusCode = err instanceof ApiError ? err.statusCode : 500;
+    const message =
+      process.env.NODE_ENV === "development"
+        ? err?.message || "Agent creation failed"
+        : "Agent creation failed";
+
+    res.status(statusCode).json({
+      message,
+      ...(process.env.NODE_ENV === "development"
+        ? { errorType: err?.name }
+        : {})
+    });
   }
 }
 
